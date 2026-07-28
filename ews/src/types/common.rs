@@ -324,7 +324,50 @@ pub enum BaseFolderId {
 
         #[xml_struct(attribute)]
         change_key: Option<String>,
+
+        /// The mailbox that owns this distinguished folder.
+        ///
+        /// Required when referencing a distinguished folder in a mailbox
+        /// other than the one associated with the account making the
+        /// request, e.g. a shared or resource mailbox.
+        ///
+        /// See <https://learn.microsoft.com/en-us/exchange/client-developer/web-service-reference/distinguishedfolderid>.
+        #[xml_struct(ns_prefix = "t")]
+        mailbox: Option<Mailbox>,
     },
+}
+
+impl BaseFolderId {
+    /// Creates a [`BaseFolderId::FolderId`] referencing an arbitrary folder
+    /// by its identifier.
+    pub fn folder(id: impl Into<String>) -> Self {
+        BaseFolderId::FolderId {
+            id: id.into(),
+            change_key: None,
+        }
+    }
+
+    /// Creates a [`BaseFolderId::DistinguishedFolderId`] referencing a
+    /// well-known folder (e.g. `"calendar"` or `"inbox"`) in the requesting
+    /// account's own mailbox.
+    pub fn distinguished(id: impl Into<String>) -> Self {
+        BaseFolderId::DistinguishedFolderId {
+            id: id.into(),
+            change_key: None,
+            mailbox: None,
+        }
+    }
+
+    /// Creates a [`BaseFolderId::DistinguishedFolderId`] referencing a
+    /// well-known folder in another mailbox, e.g. a shared or resource
+    /// mailbox, identified by `mailbox`.
+    pub fn distinguished_in_mailbox(id: impl Into<String>, mailbox: Mailbox) -> Self {
+        BaseFolderId::DistinguishedFolderId {
+            id: id.into(),
+            change_key: None,
+            mailbox: Some(mailbox),
+        }
+    }
 }
 
 /// The unique identifier of a folder.
@@ -836,6 +879,55 @@ pub struct Message {
     /// This element was introduced in Exchange 2013.
     #[xml_struct(ns_prefix = "t")]
     pub flag: Option<Flag>,
+
+    /// The start time of a calendar item.
+    ///
+    /// See <https://learn.microsoft.com/en-us/exchange/client-developer/web-service-reference/start>
+    #[xml_struct(ns_prefix = "t")]
+    pub start: Option<DateTime>,
+
+    /// The end time of a calendar item.
+    ///
+    /// See <https://learn.microsoft.com/en-us/exchange/client-developer/web-service-reference/end>
+    #[xml_struct(ns_prefix = "t")]
+    pub end: Option<DateTime>,
+
+    /// The location of a calendar item.
+    ///
+    /// See <https://learn.microsoft.com/en-us/exchange/client-developer/web-service-reference/location>
+    #[xml_struct(ns_prefix = "t")]
+    pub location: Option<String>,
+
+    /// Whether a calendar item lasts all day.
+    ///
+    /// See <https://learn.microsoft.com/en-us/exchange/client-developer/web-service-reference/isalldayevent>
+    #[xml_struct(ns_prefix = "t")]
+    pub is_all_day_event: Option<bool>,
+
+    /// Whether a calendar item has been cancelled by its organizer.
+    ///
+    /// See <https://learn.microsoft.com/en-us/exchange/client-developer/web-service-reference/iscancelled>
+    #[xml_struct(ns_prefix = "t")]
+    pub is_cancelled: Option<bool>,
+
+    /// Whether a calendar item is a meeting (i.e. has attendees other than
+    /// its organizer).
+    ///
+    /// See <https://learn.microsoft.com/en-us/exchange/client-developer/web-service-reference/ismeeting>
+    #[xml_struct(ns_prefix = "t")]
+    pub is_meeting: Option<bool>,
+
+    /// The free/busy status to publish for a calendar item.
+    ///
+    /// See <https://learn.microsoft.com/en-us/exchange/client-developer/web-service-reference/legacyfreebusystatus>
+    #[xml_struct(ns_prefix = "t")]
+    pub legacy_free_busy_status: Option<String>,
+
+    /// The organizer of a calendar item or meeting request.
+    ///
+    /// See <https://learn.microsoft.com/en-us/exchange/client-developer/web-service-reference/organizer>
+    #[xml_struct(ns_prefix = "t")]
+    pub organizer: Option<Recipient>,
 }
 
 /// An extended MAPI property of an Exchange item or folder.
