@@ -935,6 +935,25 @@ pub struct Message {
     #[xml_struct(ns_prefix = "t")]
     pub organizer: Option<Recipient>,
 
+    /// The attendees required to attend a calendar item or meeting request.
+    ///
+    /// See <https://learn.microsoft.com/en-us/exchange/client-developer/web-service-reference/requiredattendees>
+    #[xml_struct(ns_prefix = "t")]
+    pub required_attendees: Option<ArrayOfAttendees>,
+
+    /// The attendees optionally invited to a calendar item or meeting request.
+    ///
+    /// See <https://learn.microsoft.com/en-us/exchange/client-developer/web-service-reference/optionalattendees>
+    #[xml_struct(ns_prefix = "t")]
+    pub optional_attendees: Option<ArrayOfAttendees>,
+
+    /// The resources (e.g. meeting rooms or equipment) booked for a calendar
+    /// item or meeting request.
+    ///
+    /// See <https://learn.microsoft.com/en-us/exchange/client-developer/web-service-reference/resources>
+    #[xml_struct(ns_prefix = "t")]
+    pub resources: Option<ArrayOfAttendees>,
+
     /// The state of a calendar item, represented as a bitmask.
     ///
     /// See <https://learn.microsoft.com/en-us/exchange/client-developer/web-service-reference/appointmentstate>
@@ -1034,6 +1053,85 @@ where
         .into_iter()
         .map(|mailbox| Recipient { mailbox })
         .collect())
+}
+
+/// A single attendee of a calendar item or meeting request, or a resource
+/// (e.g. a meeting room) booked for one.
+///
+/// See <https://learn.microsoft.com/en-us/exchange/client-developer/web-service-reference/attendee>
+#[derive(Clone, Debug, Deserialize, XmlSerialize, PartialEq, Eq)]
+#[serde(rename_all = "PascalCase")]
+pub struct Attendee {
+    #[xml_struct(ns_prefix = "t")]
+    pub mailbox: Mailbox,
+
+    /// The attendee's response to a meeting request.
+    ///
+    /// See <https://learn.microsoft.com/en-us/exchange/client-developer/web-service-reference/responsetype>
+    #[xml_struct(ns_prefix = "t")]
+    pub response_type: Option<String>,
+
+    /// The date and time at which this attendee last responded to a meeting
+    /// request.
+    #[xml_struct(ns_prefix = "t")]
+    pub last_response_time: Option<DateTime>,
+}
+
+/// A newtype around a vector of `Attendee`s, that is deserialized using
+/// `deserialize_attendees`.
+///
+/// Unlike [`ArrayOfRecipients`], each entry is wrapped in its own `Attendee`
+/// element, per the EWS schema for `RequiredAttendees`/`OptionalAttendees`/
+/// `Resources`. Since the derived `XmlSerialize` impl for `Vec<T>` never
+/// writes a wrapper element around its items.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
+pub struct ArrayOfAttendees(
+    #[serde(deserialize_with = "deserialize_attendees")] pub Vec<Attendee>,
+);
+
+impl Deref for ArrayOfAttendees {
+    type Target = Vec<Attendee>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for ArrayOfAttendees {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl XmlSerialize for ArrayOfAttendees {
+    fn serialize_child_nodes<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<(), xml_struct::Error>
+    where
+        W: std::io::Write,
+    {
+        for attendee in &self.0 {
+            attendee.serialize_as_element(writer, "t:Attendee")?;
+        }
+
+        Ok(())
+    }
+}
+
+/// Deserializes a list of attendees.
+///
+/// See [`deserialize_recipients`] for why this intermediate type is needed.
+fn deserialize_attendees<'de, D>(deserializer: D) -> Result<Vec<Attendee>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Clone, Debug, Deserialize)]
+    #[serde(rename_all = "PascalCase")]
+    struct AttendeeSequence {
+        attendee: Vec<Attendee>,
+    }
+
+    let seq = AttendeeSequence::deserialize(deserializer)?;
+
+    Ok(seq.attendee)
 }
 
 /// A list of Internet Message Format headers.
@@ -1502,6 +1600,58 @@ mod tests {
         ]);
 
         assert_serialized_content(&data, "Recipients", &xml);
+
+        assert_deserialized_content(&xml, data);
+
+        Ok(())
+    }
+
+    /// Tests that an [`ArrayOfAttendees`] correctly serializes into XML and
+    /// back again. There should be a 1-to-1 correspondence between
+    /// `<t:Attendee>` elements and [`Attendee`]s.
+    #[test]
+    fn test_array_of_attendees() -> Result<(), Error> {
+        let xml = minify_xml(
+            r#"
+            <RequiredAttendees>
+              <t:Attendee>
+                <t:Mailbox>
+                  <t:Name>Alice Test</t:Name>
+                  <t:EmailAddress>alice@test.com</t:EmailAddress>
+                </t:Mailbox>
+                <t:ResponseType>Accept</t:ResponseType>
+              </t:Attendee>
+              <t:Attendee>
+                <t:Mailbox>
+                  <t:Name>Room 1</t:Name>
+                  <t:EmailAddress>room1@test.com</t:EmailAddress>
+                </t:Mailbox>
+              </t:Attendee>
+            </RequiredAttendees>"#,
+        );
+
+        let data = ArrayOfAttendees(vec![
+            Attendee {
+                mailbox: Mailbox {
+                    name: Some("Alice Test".into()),
+                    email_address: Some("alice@test.com".into()),
+                    ..Default::default()
+                },
+                response_type: Some("Accept".into()),
+                last_response_time: None,
+            },
+            Attendee {
+                mailbox: Mailbox {
+                    name: Some("Room 1".into()),
+                    email_address: Some("room1@test.com".into()),
+                    ..Default::default()
+                },
+                response_type: None,
+                last_response_time: None,
+            },
+        ]);
+
+        assert_serialized_content(&data, "RequiredAttendees", &xml);
 
         assert_deserialized_content(&xml, data);
 
