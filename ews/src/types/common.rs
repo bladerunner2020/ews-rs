@@ -202,6 +202,19 @@ pub enum MessageDisposition {
     SendAndSaveCopy,
 }
 
+/// Whether/how meeting invitations are sent to attendees.
+///
+/// This field is required for and only applicable to `CalendarItem` items.
+///
+/// See <https://learn.microsoft.com/en-us/exchange/client-developer/web-service-reference/createitem#sendmeetinginvitations-attribute>
+#[derive(Clone, Copy, Debug, XmlSerialize)]
+#[xml_struct(text)]
+pub enum SendMeetingInvitations {
+    SendToNone,
+    SendOnlyToAll,
+    SendToAllAndSaveCopy,
+}
+
 /// The type of the value of a MAPI property.
 ///
 /// See <https://learn.microsoft.com/en-us/exchange/client-developer/web-service-reference/extendedfielduri#propertytype-attribute>
