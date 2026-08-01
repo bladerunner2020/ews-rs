@@ -215,6 +215,21 @@ pub enum SendMeetingInvitations {
     SendToAllAndSaveCopy,
 }
 
+/// Whether/how meeting invitations or cancellations are sent to attendees
+/// when updating a calendar item.
+///
+/// This field is required for and only applicable to `CalendarItem` items.
+///
+/// See <https://learn.microsoft.com/en-us/exchange/client-developer/web-service-reference/updateitem#sendmeetinginvitationsorcancellations-attribute>
+#[derive(Clone, Copy, Debug, XmlSerialize)]
+#[xml_struct(text)]
+pub enum SendMeetingInvitationsOrCancellations {
+    SendToNone,
+    SendOnlyToAll,
+    SendToAllAndSaveCopy,
+    SendToChangedAndSaveCopy,
+}
+
 /// The type of the value of a MAPI property.
 ///
 /// See <https://learn.microsoft.com/en-us/exchange/client-developer/web-service-reference/extendedfielduri#propertytype-attribute>
