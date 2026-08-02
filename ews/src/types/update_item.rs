@@ -6,7 +6,9 @@ use ews_proc_macros::operation_response;
 use serde::Deserialize;
 use xml_struct::XmlSerialize;
 
-use crate::types::common::{BaseItemId, Message, MessageDisposition, PathToElement};
+use crate::types::common::{
+    BaseItemId, Message, MessageDisposition, PathToElement, SendMeetingInvitationsOrCancellations,
+};
 use crate::{Items, MESSAGES_NS_URI};
 
 /// A request to update properties of one or more Exchange items.
@@ -34,6 +36,15 @@ pub struct UpdateItem {
     /// See <https://learn.microsoft.com/en-us/exchange/client-developer/web-service-reference/updateitem#conflictresolution-attribute>
     #[xml_struct(attribute)]
     pub conflict_resolution: Option<ConflictResolution>,
+
+    /// Whether/how meeting invitations or cancellations are sent to
+    /// attendees.
+    ///
+    /// Required when updating calendar items, otherwise it has no effect.
+    ///
+    /// See <https://learn.microsoft.com/en-us/exchange/client-developer/web-service-reference/updateitem#sendmeetinginvitationsorcancellations-attribute>
+    #[xml_struct(attribute)]
+    pub send_meeting_invitations_or_cancellations: Option<SendMeetingInvitationsOrCancellations>,
 
     /// A list of items and their corresponding updates.
     ///
@@ -159,7 +170,7 @@ mod test {
 
     use crate::{
         test_utils::{assert_serialized_content, minify_xml},
-        BaseItemId, DateTime, Message, MessageDisposition,
+        BaseItemId, DateTime, Message, MessageDisposition, SendMeetingInvitationsOrCancellations,
     };
 
     use super::{ItemChange, ItemChangeDescription, ItemChangeInner, UpdateItem, Updates};
@@ -168,6 +179,7 @@ mod test {
         UpdateItem {
             message_disposition: MessageDisposition::SaveOnly,
             conflict_resolution: None,
+            send_meeting_invitations_or_cancellations: None,
             item_changes: vec![ItemChange {
                 item_change: ItemChangeInner {
                     item_id: BaseItemId::ItemId {
@@ -358,6 +370,50 @@ mod test {
                 .0
                 .format(&time::format_description::well_known::Iso8601::DEFAULT)
                 .unwrap(),
+        );
+
+        assert_serialized_content(&request, "UpdateItem", &expected);
+    }
+
+    #[test]
+    fn test_serialize_update_item_send_meeting_invitations_or_cancellations() {
+        let request = UpdateItem {
+            message_disposition: MessageDisposition::SaveOnly,
+            conflict_resolution: None,
+            send_meeting_invitations_or_cancellations: Some(
+                SendMeetingInvitationsOrCancellations::SendToNone,
+            ),
+            item_changes: vec![ItemChange {
+                item_change: ItemChangeInner {
+                    item_id: BaseItemId::ItemId {
+                        id: "id".to_string(),
+                        change_key: None,
+                    },
+                    updates: Updates {
+                        inner: vec![ItemChangeDescription::new_message_field(
+                            "calendar:End",
+                            Message::default(),
+                        )],
+                    },
+                },
+            }],
+        };
+
+        let expected = minify_xml(
+            r#"
+            <UpdateItem xmlns="http://schemas.microsoft.com/exchange/services/2006/messages" MessageDisposition="SaveOnly" SendMeetingInvitationsOrCancellations="SendToNone">
+              <ItemChanges>
+                <t:ItemChange>
+                  <t:ItemId Id="id"/>
+                  <t:Updates>
+                    <t:SetItemField>
+                      <t:FieldURI FieldURI="calendar:End"/>
+                      <t:Message></t:Message>
+                    </t:SetItemField>
+                  </t:Updates>
+                </t:ItemChange>
+              </ItemChanges>
+            </UpdateItem>"#,
         );
 
         assert_serialized_content(&request, "UpdateItem", &expected);
