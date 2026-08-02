@@ -130,6 +130,16 @@ pub enum PathToElement {
     },
 }
 
+impl PathToElement {
+    /// Creates a [`PathToElement::FieldURI`] referencing a property by its
+    /// well-known string identifier (e.g. `"calendar:End"`).
+    pub fn new_field_uri(uri: impl Into<String>) -> Self {
+        PathToElement::FieldURI {
+            field_URI: uri.into(),
+        }
+    }
+}
+
 /// The identifier for an extended MAPI property.
 ///
 /// See <https://learn.microsoft.com/en-us/exchange/client-developer/web-service-reference/extendedfielduri>
