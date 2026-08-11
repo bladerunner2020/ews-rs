@@ -330,8 +330,6 @@ pub enum BaseFolderId {
         /// Required when referencing a distinguished folder in a mailbox
         /// other than the one associated with the account making the
         /// request, e.g. a shared or resource mailbox.
-        ///
-        /// See <https://learn.microsoft.com/en-us/exchange/client-developer/web-service-reference/distinguishedfolderid>.
         #[xml_struct(ns_prefix = "t")]
         mailbox: Option<Mailbox>,
     },
